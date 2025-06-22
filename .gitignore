@@ -1,0 +1,48 @@
+# --- Python --------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+venv/
+ENV/
+
+# Package/build artifacts
+build/
+dist/
+*.egg-info/
+
+# IDE / editor folders
+.vscode/
+.idea/
+*.sublime-* 
+
+# --- Project specific ---------------------------------------------
+# Logs
+logs/
+subtitle_inserter/logs/
+
+# Generated output videos & temp files
+output/
+*_sub.mp4
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Sample subtitle & csv data
+*.srt
+*.ass
+*.csv
+
+# Executable/batch scripts generated for demo
+run_subtitle.bat
+
+# Icon/ico created at runtime (will be regenerated)
+icon.ico
+
+# OS / Misc
+.DS_Store
+Thumbs.db 
