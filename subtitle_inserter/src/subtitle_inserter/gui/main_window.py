@@ -274,6 +274,7 @@ class MainWindow(QMainWindow):
         shadow_enabled = font_cfg.get("shadow", True)
         shadow_val = 3 if shadow_enabled else 0
         bold_flag = -1 if font_cfg.get("bold", False) else 0
+        margin_v = font_cfg.get("margin_v", 10)
         # ASS 色は &HAABBGGRR 形式（BBGGRR）。ここでは不透明扱い AA=00
         def hex_to_ass(c: str):
             c = c.lstrip("#")
@@ -290,7 +291,7 @@ class MainWindow(QMainWindow):
             "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
             "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
             "Alignment, MarginL, MarginR, MarginV, Encoding\n"
-            f"Style: Default,{fontname},{fontsize},{primary_ass},&H000000FF,{outline_ass},&H64000000,{bold_flag},0,0,0,100,100,0,0,1,{outline_width},{shadow_val},2,10,10,10,1\n\n"
+            f"Style: Default,{fontname},{fontsize},{primary_ass},&H000000FF,{outline_ass},&H64000000,{bold_flag},0,0,0,100,100,0,0,1,{outline_width},{shadow_val},2,10,10,{margin_v},1\n\n"
             "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
         )
         dialogues = "\n".join(l.to_ass_dialogue() for l in lines)

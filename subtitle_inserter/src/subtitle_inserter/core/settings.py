@@ -26,6 +26,7 @@ class SettingsManager:
             "outline_width": 2,
             "bold": False,
             "shadow": True,
+            "margin_v": 10,
         },
         "position": {"x": 0.5, "y": 0.9},  # 正規化座標
         "fps": 30,

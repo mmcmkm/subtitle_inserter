@@ -112,6 +112,8 @@ class FFmpegCommandBuilder:
                 parts.append(f"OutlineColour={v}")
         if width := cfg.get("outline_width"):
             parts.append(f"Outline={width}")
+        if (margin := cfg.get("margin_v")) is not None:
+            parts.append(f"MarginV={margin}")
         if cfg.get("bold"):
             parts.append("Bold=1")
         if cfg.get("shadow"):

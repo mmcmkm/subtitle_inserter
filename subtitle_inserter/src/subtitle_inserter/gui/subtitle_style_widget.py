@@ -44,6 +44,11 @@ class SubtitleStyleWidget(QWidget):
         self.spin_outline_width.setRange(0, 10)
         layout.addRow("縁取り幅", self.spin_outline_width)
 
+        # Bottom margin
+        self.spin_margin_v = QSpinBox()
+        self.spin_margin_v.setRange(0, 500)
+        layout.addRow("下余白(px)", self.spin_margin_v)
+
         # Color buttons
         self.btn_color = QPushButton()
         self.btn_color.clicked.connect(lambda: self._pick_color("color"))
@@ -81,6 +86,7 @@ class SubtitleStyleWidget(QWidget):
         self.combo_font.currentTextChanged.connect(self._save)
         self.spin_size.valueChanged.connect(self._save)
         self.spin_outline_width.valueChanged.connect(self._save)
+        self.spin_margin_v.valueChanged.connect(self._save)
         self.chk_bold.stateChanged.connect(self._save)
         self.chk_shadow.stateChanged.connect(self._save)
 
@@ -111,6 +117,7 @@ class SubtitleStyleWidget(QWidget):
         self.combo_font.setCurrentText(cfg.get("family", "Arial"))
         self.spin_size.setValue(int(cfg.get("size", 32)))
         self.spin_outline_width.setValue(int(cfg.get("outline_width", 2)))
+        self.spin_margin_v.setValue(int(cfg.get("margin_v", 0)))
         self._set_btn_color(self.btn_color, cfg.get("color", "#ffffff"))
         self._set_btn_color(self.btn_outline, cfg.get("outline_color", "#000000"))
         self.chk_bold.setChecked(bool(cfg.get("bold", False)))
@@ -126,6 +133,7 @@ class SubtitleStyleWidget(QWidget):
                 "bold": self.chk_bold.isChecked(),
                 "shadow": self.chk_shadow.isChecked(),
                 "outline_width": self.spin_outline_width.value(),
+                "margin_v": self.spin_margin_v.value(),
             }
         )
         self.settings.set("font", cfg)
