@@ -30,6 +30,7 @@ class SettingsManager:
         },
         "position": {"x": 0.5, "y": 0.9},  # 正規化座標
         "fps": 30,
+        "start_offset": 0.0,
         "csv_mappings": {},  # filename -> mapping dict
         "output_dir": "",  # custom output dir, empty means default
         "crf": 23,

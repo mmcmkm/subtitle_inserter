@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QFormLayout,
     QSpinBox,
+    QDoubleSpinBox,
     QComboBox,
     QFileDialog,
 )
@@ -41,6 +42,13 @@ class OutputSettingsWidget(QWidget):
         self.spin_crf.setRange(0, 51)
         layout.addRow("CRF (画質)", self.spin_crf)
 
+        # Start offset
+        self.spin_offset = QDoubleSpinBox()
+        self.spin_offset.setRange(0.0, 3600.0)  # 0 秒～1 時間まで
+        self.spin_offset.setSingleStep(0.1)
+        self.spin_offset.setDecimals(2)
+        layout.addRow("開始オフセット (秒)", self.spin_offset)
+
         # Preset combo
         self.combo_preset = QComboBox()
         self.combo_preset.addItems([
@@ -60,6 +68,7 @@ class OutputSettingsWidget(QWidget):
 
         self.line_dir.textChanged.connect(self._save)
         self.spin_crf.valueChanged.connect(self._save)
+        self.spin_offset.valueChanged.connect(self._save)
         self.combo_preset.currentTextChanged.connect(self._save)
 
     # ------------------------------------------------------------------
@@ -76,8 +85,12 @@ class OutputSettingsWidget(QWidget):
         if idx >= 0:
             self.combo_preset.setCurrentIndex(idx)
 
+        # start offset
+        self.spin_offset.setValue(float(self.settings.get("start_offset", 0.0)))
+
     def _save(self):  # noqa: D401,N802
         self.settings.set("output_dir", self.line_dir.text())
         self.settings.set("crf", self.spin_crf.value())
         self.settings.set("preset", self.combo_preset.currentText())
+        self.settings.set("start_offset", self.spin_offset.value())
         self.settings.save() 

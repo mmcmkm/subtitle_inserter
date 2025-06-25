@@ -6,10 +6,14 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
+import tempfile
+from typing import List
 
 from .core.ffmpeg_builder import FFmpegCommandBuilder
 from .core.logger import setup_logger, get_logger
 from .core.settings import SettingsManager  # noqa: F401  # ensure settings initialized
+from .core.parsers import SRTParser, ASSParser, CSVParser
+from .core.subtitle_model import SubtitleLine
 
 
 def _build_output_path(video_path: Path) -> Path:
@@ -71,7 +75,17 @@ def main(argv: list[str] | None = None) -> None:  # noqa: D401
     shadow_grp.add_argument("--no-shadow", dest="shadow", action="store_false", help="影を無効にする")
     parser.set_defaults(shadow=None)
 
+    parser.add_argument(
+        "--start-offset",
+        type=float,
+        default=0.0,
+        help="字幕開始オフセット秒 (0 以上)。指定すると字幕全体を遅延させます。",
+    )
+
     args = parser.parse_args(argv)
+
+    if args.start_offset < 0:
+        parser.error("--start-offset は 0 以上を指定してください")
 
     # ロガー初期化
     log_dir = Path.cwd() / "logs"
@@ -109,9 +123,29 @@ def main(argv: list[str] | None = None) -> None:  # noqa: D401
 
         sm.set("font", font_cfg)
 
+    # Offset processing if needed
+    sub_path: Path | None = args.subtitle
+    if args.start_offset > 0:
+        ext = sub_path.suffix.lower()
+        if ext == ".srt":
+            lines = SRTParser().parse(sub_path)
+        elif ext == ".ass":
+            lines = ASSParser().parse(sub_path)
+        elif ext == ".csv":
+            # CSV は列マッピング無し、start=0,text=2,end=1 の想定
+            lines = CSVParser().parse(sub_path, start_col=0, text_col=2, end_col=1)
+        else:
+            parser.error(f"未対応の字幕形式です: {sub_path}")
+
+        for ln in lines:
+            ln.start += args.start_offset
+            ln.end += args.start_offset
+
+        sub_path = _write_temp_ass(lines)
+
     rc = run_once(
         video_path=args.video,
-        subtitles_path=args.subtitle,
+        subtitles_path=sub_path,
         output_path=args.output,
         codec_copy=not args.no_copy,
         crf=args.crf,
@@ -121,4 +155,45 @@ def main(argv: list[str] | None = None) -> None:  # noqa: D401
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main() 
+    main()
+
+
+# ----------------------------------------------------------------------
+def _write_temp_ass(lines: List[SubtitleLine]) -> Path:
+    """Generate temporary ASS file from SubtitleLine list and return path."""
+    settings = SettingsManager()
+    font_cfg = settings.get("font", {})
+    fontname = font_cfg.get("family", "Arial")
+    fontsize = font_cfg.get("size", 32)
+    primary = font_cfg.get("color", "#ffffff")
+    outline_color = font_cfg.get("outline_color", "#000000")
+    outline_width = font_cfg.get("outline_width", 3)
+    shadow_enabled = font_cfg.get("shadow", True)
+    shadow_val = 3 if shadow_enabled else 0
+    bold_flag = -1 if font_cfg.get("bold", False) else 0
+    margin_v = font_cfg.get("margin_v", 10)
+
+    def hex_to_ass(c: str):
+        c = c.lstrip("#")
+        if len(c) == 6:
+            r, g, b = c[0:2], c[2:4], c[4:6]
+            return f"&H00{b}{g}{r}"
+        return "&H00FFFFFF"
+
+    primary_ass = hex_to_ass(primary)
+    outline_ass = hex_to_ass(outline_color)
+
+    header = (
+        "[Script Info]\nScriptType: v4.00+\nCollisions: Normal\nPlayResX: 1920\nPlayResY: 1080\nTimer: 100.0000\n\n"
+        "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+        "Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        f"Style: Default,{fontname},{fontsize},{primary_ass},&H000000FF,{outline_ass},&H64000000,{bold_flag},0,0,0,100,100,0,0,1,{outline_width},{shadow_val},2,10,10,{margin_v},1\n\n"
+        "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+
+    dialogues = "\n".join(l.to_ass_dialogue() for l in lines)
+    content = header + dialogues
+    tmp_file = Path(tempfile.gettempdir()) / "subtitle_offset.ass"
+    tmp_file.write_text(content, encoding="utf-8")
+    return tmp_file 

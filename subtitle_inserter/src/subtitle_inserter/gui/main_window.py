@@ -156,6 +156,10 @@ class MainWindow(QMainWindow):
 
         video_path, sub_path = self.job_queue[self.current_job_index]
 
+        # 字幕オフセット (動画開始からの遅延秒数) を設定から取得
+        settings_global = SettingsManager()
+        offset_sec = float(settings_global.get("start_offset", 0.0))
+
         # CSV を ASS に変換
         if sub_path and sub_path.suffix.lower() == ".csv":
             try:
@@ -173,6 +177,11 @@ class MainWindow(QMainWindow):
                         time_format=mapping.get("time_unit", "seconds"),
                         fps=float(mapping.get("fps", 30)),
                     )
+                    # オフセット適用
+                    if offset_sec:
+                        for ln in lines:
+                            ln.start += offset_sec
+                            ln.end += offset_sec
                 else:
                     # 簡易推測
                     header_line = open(sub_path, encoding="utf-8", errors="ignore").readline()
@@ -187,9 +196,39 @@ class MainWindow(QMainWindow):
                         end_col=_guess("end_time", 1),
                         time_format="seconds",
                     )
+                    # オフセット適用
+                    if offset_sec:
+                        for ln in lines:
+                            ln.start += offset_sec
+                            ln.end += offset_sec
                 sub_path = self._write_temp_ass(lines)
             except Exception as e:  # noqa: BLE001
                 logger.exception("CSV 解析に失敗: %s", e)
+                self._on_error(str(e))
+                return
+
+        # ------------------------------------------------------------
+        # SRT / ASS もオフセット付きで ASS に変換
+        if offset_sec and sub_path and sub_path.suffix.lower() in {".srt", ".ass"}:
+            try:
+                if sub_path.suffix.lower() == ".srt":
+                    from ..core.parsers import SRTParser  # local import to avoid circular
+
+                    lines = SRTParser().parse(sub_path)
+                else:
+                    from ..core.parsers import ASSParser  # local import to avoid circular
+
+                    lines = ASSParser().parse(sub_path)
+
+                # Apply offset seconds
+                for ln in lines:
+                    ln.start += offset_sec
+                    ln.end += offset_sec
+
+                # Overwrite subtitle path with temporary ASS file
+                sub_path = self._write_temp_ass(lines)
+            except Exception as e:  # noqa: BLE001
+                logger.exception("字幕オフセット変換に失敗: %s", e)
                 self._on_error(str(e))
                 return
 
@@ -205,12 +244,11 @@ class MainWindow(QMainWindow):
         # プレビュー用字幕テキストを抽出
         preview_texts: List[str] = []
         try:
-            if sub_path:
-                if sub_path.suffix.lower() == ".csv":
-                    # CSV の場合は前段で作成した lines を再利用
-                    if "lines" in locals():
-                        preview_texts = [l.text for l in lines][:50]
-                elif sub_path.suffix.lower() == ".srt":
+            if "lines" in locals():
+                # 既にパース済みの行リストがあれば再利用
+                preview_texts = [l.text for l in lines][:50]
+            elif sub_path:
+                if sub_path.suffix.lower() == ".srt":
                     from ..core.parsers import SRTParser
 
                     preview_texts = [l.text for l in SRTParser().parse(sub_path)][:50]
